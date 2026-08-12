@@ -6,6 +6,10 @@ Claude Code 플러그인.
 주제 한 줄을 주면 → 콘티(같이 짠다) → 씬 코드 → 프리뷰 검증 →
 최종 렌더 → 완성본 검수까지 간다.
 
+혼자 달리지 않는다. **세 지점에서 멈춰 확인받는다** — 방향 / 그림 /
+첫 씬. 그중 핵심은 **코딩을 마치기 전에 비트별 실제 렌더 스틸을
+보여주는 것**이다.
+
 방법론의 출처는 3Blue1Brown(Grant Sanderson)이 자신의 실제 제작
 과정을 공개한 영상
 [*How I animate 3Blue1Brown — A Manim demo with Ben Sparks*](https://www.youtube.com/watch?v=rbu7Zu5X1zI)
@@ -37,11 +41,12 @@ commands/
   storyboard.md               /storyboard  — 콘티만 (사용자와 단계별로)
   mv-render.md                /mv-render   — 기존 씬을 검증 루프에 태워 렌더
   mv-qc.md                    /mv-qc       — 완성된 영상 검수
+  mv-revise.md                /mv-revise   — 짧은 수정 요청 → 구체적 변경
 skills/
   manim-video/                메인 스킬 — 파이프라인·코딩 규칙·프리뷰 루프·검수
     references/               CE 쿡북 / 3b1b 연출 문법 / 검수 체크리스트 /
                               한글 / ManimGL / 트러블슈팅
-    templates/                씬 템플릿 6종
+    templates/                씬 템플릿 6종 + project/ (의도 카드·결정 기록)
     scripts/                  mv.py (렌더·배치검사·이어붙이기), qc.py (검수),
                               setup_manim.sh
 assets/sfx/                   효과음 9종 + generate.sh (ffmpeg 합성)
@@ -82,6 +87,7 @@ Claude Code에서:
 
 ```
 /math-video 행렬식이 왜 넓이 배율인지
+/mv-revise 조금 더 천천히
 /math-video 로렌츠 끌개와 카오스 --길이 7분 --4k
 /storyboard 푸리에 변환 --대상 학부1학년
 /mv-render scenes/lorenz.py LorenzAttractor --4k
@@ -113,17 +119,50 @@ math-video-director 에이전트로 "베이즈 정리" 영상 만들어줘
 ## 파이프라인
 
 ```
-① 기획      주제 → 핵심 한 문장 → 콘티              math-storyboard (사용자와 함께)
-② 씬 분할   비트 → Scene (1씬 = 1아이디어 = 20~60초)
-③ 코딩      템플릿에서 시작                          manim-video/templates
-④ 검증 ★   layout(텍스트) → still(PNG) → preview(mp4)  mv.py
-⑤ 최종      1080p60 / 4K60 렌더                      mv.py final
-⑥ 검수 ★   완성본을 프레임으로 뜯어본다              qc.py + math-video-qc
+① 기획      핵심 한 문장 · 대상 · 비트 순서       math-storyboard   ← G1 확인
+② 배치      비트별 정지 화면만 → 스틸 판          mv.py sketch      ← G2 확인
+③ 코딩      승인된 배치에 애니메이션. 첫 씬 먼저  mv.py preview     ← G3 확인
+④ 검증 ★   layout(텍스트) → still(PNG) → preview   mv.py
+⑤ 최종      1080p60 / 4K60 렌더 + 이어붙이기       mv.py final/join
+⑥ 검수 ★   완성본을 프레임으로 뜯어본다            qc.py + math-video-qc
 ```
 
-①은 **혼자 만들지 않는다.** 핵심 한 문장 / 대상·길이 / 비트 뼈대 /
-콘티 / 내레이션 다섯 지점에서 멈추고 확인받는다. 완성된 기획안을
-통째로 들이밀면 사용자는 고칠 데를 못 찾는다.
+### 세 번 멈춘다 — 세 번뿐이다
+
+| | 무엇을 보여주고 | 여기서 되돌리면 |
+|---|---|---|
+| **G1 방향** | 핵심 한 문장 후보 3개, 대상, 비트 순서 | 코드 0줄 버림 |
+| **G2 그림** | **비트별 실제 렌더 스틸 판** | 애니메이션 코드 0줄 버림 |
+| **G3 첫 씬** | 씬 1 완성본 | 나머지 씬에 같은 실수가 안 퍼짐 |
+
+**G2가 핵심이다.** 텍스트 콘티를 승인하는 것과 그림을 승인하는 것은
+다르다. 비트시트를 읽고 "좋아요"라고 해도 머릿속 그림과 실제 렌더는
+다르고, **처음 보는 게 완성본이면 이미 늦다.**
+
+```bash
+mv.py sketch scenes/circle.py     # 파일 안 모든 씬을 스틸로 → 한 판
+```
+
+![스틸 판](docs/images/sketch-sheet.png)
+
+통과 기록은 `.mv/decisions.md` 에 남는다. **기록이 없으면 다음
+단계로 가지 않는다** — 게이트를 말뿐인 약속이 아니라 실제 관문으로
+만드는 장치다.
+
+### 취향은 기록되고 재사용된다
+
+`.mv/intent.md` 에 톤·밀도·속도·색·**하지 말 것**을 적어두면 다음
+영상에서 다시 묻지 않는다. 매번 처음부터 설득하지 않아도 된다.
+
+코드를 안 고치고 조절되는 노브:
+
+```bash
+MV_PACE=1.25        전체 속도 (play 의 run_time 과 wait 에 곱해짐)
+MV_TEXT_SCALE=1.1   글자 크기
+```
+
+"더 천천히" / "글씨 좀 키워" 같은 짧은 요청이 이걸로 처리된다.
+사전은 `/mv-revise`.
 
 ### ④가 핵심이다
 

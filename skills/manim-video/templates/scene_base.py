@@ -22,6 +22,17 @@ config.background_color = "#0f0f14"  # 순검정보다 눈이 덜 아프다
 KR_FONT = os.environ.get("MV_KR_FONT", "NanumGothic")
 LANG = os.environ.get("MV_LANG", "ko")
 
+# 제작자 취향 노브. .mv/intent.md 에 적어둔 값을 환경변수로 넘긴다.
+# "더 천천히" / "글씨 좀 키워" 같은 요청을 코드를 안 고치고 처리하기 위한 것.
+#
+#   MV_PACE=1.25 manim ...     전체 속도 25% 느리게
+#   MV_TEXT_SCALE=1.1 manim ...  글자 10% 크게
+#
+# PACE 는 play(run_time=...) 로 **명시한** 값과 wait 에만 걸린다.
+# 애니메이션 객체에 직접 준 run_time 은 건드리지 않는다.
+PACE = float(os.environ.get("MV_PACE", "1.0"))
+TEXT_SCALE = float(os.environ.get("MV_TEXT_SCALE", "1.0"))
+
 # 변수 하나 = 색 하나. 수식·그래프·라벨 어디에 나오든 같은 색을 쓴다.
 PALETTE = {
     "x": BLUE_B,
@@ -37,7 +48,8 @@ PALETTE = {
 
 def kr(text: str, size: int = 36, color=WHITE, **kwargs) -> Text:
     """한글 텍스트. font 인자를 매번 쓰지 않기 위한 래퍼."""
-    return Text(text, font=KR_FONT, font_size=size, color=color, **kwargs)
+    return Text(text, font=KR_FONT, font_size=size * TEXT_SCALE,
+                color=color, **kwargs)
 
 
 def subtitle(text: str, size: int = 30) -> Text:
@@ -140,7 +152,12 @@ class MathScene(Scene):
 
     # ------------------------------------------------- 레이아웃 자동 점검
 
+    def wait(self, duration: float = 1.0, **kwargs):
+        return super().wait(duration * PACE, **kwargs)
+
     def play(self, *args, **kwargs):
+        if PACE != 1.0 and "run_time" in kwargs:
+            kwargs["run_time"] = kwargs["run_time"] * PACE
         result = super().play(*args, **kwargs)
         self._play_index = getattr(self, "_play_index", -1) + 1
         if LAYOUT_CHECK:

@@ -9,6 +9,7 @@ manim CLI를 직접 쳐도 되지만, 이 래퍼는 두 가지를 해준다:
 사용법:
     mv.py check
     mv.py scenes  <file.py>
+    mv.py sketch  <file.py> [-s A,B,C]           비트별 스틸을 한 판으로 (승인용)
     mv.py layout  <file.py> <SceneName>          이미지 없이 배치만 텍스트로 검사
     mv.py still   <file.py> <SceneName> [-n 3,5]
     mv.py preview <file.py> <SceneName>
@@ -20,6 +21,7 @@ from __future__ import annotations
 
 import argparse
 import glob
+import math
 import os
 import re
 import shutil
@@ -227,6 +229,107 @@ def cmd_final(args) -> int:
     return _render(args, extra, exts, label)
 
 
+# ------------------------------------------------------------------ sketch
+
+
+def _label_still(src: Path, dst: Path, label: str, width: int) -> bool:
+    """스틸 한 장에 씬 이름을 각인하고 타일 크기로 맞춘다."""
+    font = None
+    for candidate in (
+        "/usr/share/fonts/truetype/nanum/NanumGothic.ttf",
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+    ):
+        if os.path.exists(candidate):
+            font = candidate
+            break
+
+    vf = f"scale={width}:-2"
+    if font:
+        safe = label.replace(":", r"\:").replace("'", "")
+        vf += (
+            f",drawtext=fontfile='{font}':text='{safe}':"
+            f"x=10:y=10:fontsize=22:fontcolor=white:"
+            f"box=1:boxcolor=black@0.7:boxborderw=8"
+        )
+    code, log = _run_ffmpeg(["-i", str(src), "-vf", vf, "-frames:v", "1", str(dst)])
+    return code == 0 and dst.exists()
+
+
+def cmd_sketch(args) -> int:
+    """비트별 정지 화면을 한 판으로 묶어 **코딩을 마치기 전에** 보여준다.
+
+    제작자가 텍스트 콘티가 아니라 실제 그림을 보고 판단할 수 있게
+    하는 게 목적이다. 여기서 "구도가 아니다"가 나오면 버리는 코드가
+    거의 없다. 완성본을 보고 나서 말하면 전부 다시 써야 한다.
+    """
+    source = Path(args.file)
+    if not source.exists():
+        return _fail(f"파일이 없다: {source}")
+
+    if args.scenes:
+        scenes = [s.strip() for s in args.scenes.split(",") if s.strip()]
+    else:
+        text = source.read_text(encoding="utf-8")
+        scenes = re.findall(
+            r"^class\s+(\w+)\s*\(\s*[\w\s,.]*Scene[\w\s,.]*\)\s*:",
+            text, re.MULTILINE,
+        )
+    if not scenes:
+        return _fail("Scene 클래스를 찾지 못했다")
+
+    work = source.parent / "media" / "sketch"
+    work.mkdir(parents=True, exist_ok=True)
+    for old in work.glob("*.png"):
+        old.unlink()
+
+    cols = min(3, len(scenes))
+    rows = math.ceil(len(scenes) / cols)
+    tile_w = 640 if cols <= 2 else 480
+
+    tiles: list[Path] = []
+    for index, scene in enumerate(scenes):
+        code, log = _run(
+            ["manim", "-s", "-ql", "--format", "png", "--disable_caching",
+             str(source), scene]
+        )
+        if code != 0:
+            print(f"  {scene}: 렌더 실패 — 건너뛴다", file=sys.stderr)
+            continue
+        still = _find_output(log, source, scene, (".png",))
+        if still is None:
+            print(f"  {scene}: 출력 파일을 못 찾았다 — 건너뛴다", file=sys.stderr)
+            continue
+        dst = work / f"{index:03d}.png"
+        if _label_still(Path(still), dst, f"{index + 1}. {scene}", tile_w):
+            tiles.append(dst)
+
+    if not tiles:
+        return _fail("스틸을 한 장도 못 만들었다")
+
+    # 번호를 다시 매겨 image2 demuxer 가 연속으로 읽게 한다
+    for position, path in enumerate(sorted(tiles)):
+        target = work / f"tile{position:03d}.png"
+        if path != target:
+            path.rename(target)
+
+    out = source.parent / f"{source.stem}_sketch.png"
+    code, log = _run_ffmpeg(
+        ["-framerate", "1", "-i", str(work / "tile%03d.png"),
+         "-vf", f"tile={cols}x{rows}:margin=8:padding=6:color=#202028",
+         "-frames:v", "1", str(out)]
+    )
+    for leftover in work.glob("*.png"):
+        leftover.unlink()
+    if code != 0 or not out.exists():
+        sys.stderr.write(log[-1500:])
+        return _fail("스틸 판 생성 실패")
+
+    print(f"\n비트 {len(tiles)}개를 {cols}x{rows} 판으로 묶었다.")
+    print("이걸 제작자에게 보여주고 **구도·색·밀도**를 확인받은 뒤 코딩을 마무리한다.")
+    print(out.resolve())
+    return 0
+
+
 # ------------------------------------------------------------------ layout
 
 
@@ -377,6 +480,12 @@ def main() -> int:
         p.add_argument("-n", metavar="A[,B]",
                        help="A번째 애니메이션부터 (B번째까지)만 렌더")
         p.set_defaults(func=fn)
+
+    p = sub.add_parser("sketch", help="비트별 스틸을 한 판으로 (제작자 승인용)")
+    p.add_argument("file")
+    p.add_argument("-s", "--scenes", metavar="A,B,C",
+                   help="이 씬들만. 생략하면 파일 안 전부")
+    p.set_defaults(func=cmd_sketch)
 
     p = sub.add_parser("layout", help="이미지 없이 배치만 텍스트로 검사 (제일 쌈)")
     p.add_argument("file")

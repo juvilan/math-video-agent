@@ -42,7 +42,9 @@ skills/
     references/               CE 쿡북 / 3b1b 연출 문법 / 검수 체크리스트 /
                               한글 / ManimGL / 트러블슈팅
     templates/                씬 템플릿 6종
-    scripts/                  mv.py (렌더 CLI), qc.py (검수 CLI), setup_manim.sh
+    scripts/                  mv.py (렌더·배치검사·이어붙이기), qc.py (검수),
+                              setup_manim.sh
+assets/sfx/                   효과음 (ffmpeg 합성 자리표시자 — 갈아끼울 것)
   math-storyboard/            콘티 스킬 — 6단계로 사용자와 함께 기획
 docs/
   source-video-analysis.md    원본 영상 분석 + 이 레포로의 매핑
@@ -114,7 +116,7 @@ math-video-director 에이전트로 "베이즈 정리" 영상 만들어줘
 ① 기획      주제 → 핵심 한 문장 → 콘티              math-storyboard (사용자와 함께)
 ② 씬 분할   비트 → Scene (1씬 = 1아이디어 = 20~60초)
 ③ 코딩      템플릿에서 시작                          manim-video/templates
-④ 검증 ★   still(PNG) → 눈으로 확인 → preview(mp4)  mv.py
+④ 검증 ★   layout(텍스트) → still(PNG) → preview(mp4)  mv.py
 ⑤ 최종      1080p60 / 4K60 렌더                      mv.py final
 ⑥ 검수 ★   완성본을 프레임으로 뜯어본다              qc.py + math-video-qc
 ```
@@ -137,6 +139,37 @@ Manim 코드는 문법이 통과해도 조용히 망가진다 — 객체가 화�
 있거나, 라벨이 겹치거나, 한글이 네모로 나오거나, 3D 카메라가
 물체 뒤를 보고 있어도 에러가 없다. **렌더한 그림을 보지 않은 씬은
 완성된 게 아니다.**
+
+### 토큰은 이미지에서 나간다
+
+이 파이프라인에서 압도적으로 비싼 동작은 **렌더된 이미지를 Read
+하는 것**이다. 그래서 ④를 두 겹으로 나눴다.
+
+```bash
+python3 skills/manim-video/scripts/mv.py layout scenes/circle.py Unroll
+```
+
+```
+배치 문제 1종:
+  [play#19~play#21] MathTex('r') title-safe 밖 (x 6.28~6.47, 안전 ±6.40)
+```
+
+씬을 끝까지 돌리되 **이미지를 만들지 않고** 매 `play` 마다 좌표로
+검사한다 — 화면 밖 / title-safe 이탈 / 글자 겹침 / 효과음 파일 없음.
+반복해도 싸다. 이게 깨끗해진 뒤에 스틸을 본다.
+
+| | `layout` (텍스트) | `still` (이미지) |
+|---|---|---|
+| 화면 밖 / 겹침 / 안전영역 | ✓ | ✓ (비싸게) |
+| 색이 배경과 붙는지 | ✗ | ✓ |
+| 그림이 의도한 모양인지 | ✗ | ✓ |
+
+그리고 **콘티에서 화면 배치를 미리 정하면** 이 둘 다 덜 돌린다.
+`storyboard.md` 템플릿에 배치표가 들어간 이유다. 비용 순서 전체는
+`references/token-budget.md`.
+
+실제로 `layout` 은 ④~⑧이 전부 놓쳤던 title-safe 이탈 1건을
+이미지 한 장 없이 잡았다.
 
 ### ⑥은 ④가 못 보는 걸 본다
 
@@ -187,6 +220,36 @@ python3 $QC strip  out.mp4 17.5 19 -n 6   # 특정 구간 촘촘히
 `ode_trajectory.py`는 원본 영상의 메인 프로젝트를 CE로 통째로
 포팅한 것이다. `lorenz_system`과 축 범위만 바꾸면 Rössler,
 이중진자 등에 그대로 쓸 수 있다.
+
+---
+
+## 효과음
+
+`assets/sfx/` 에 음원을 두고:
+
+```python
+self.sfx("whoosh", gain=-12)      # play **앞에**
+self.play(Create(circle), run_time=1.5)
+```
+
+한 씬에 3개까지. 과하면 유치해진다.
+
+**소리는 세 가지 방식으로 조용히 사라진다** — 전부 에러 없이:
+
+1. manim 캐시가 켜져 있으면 `add_sound` 가 아무 일도 안 한다
+   (`mv.py` 가 소스에 소리가 있으면 캐시를 자동으로 끈다)
+2. 씬 맨 앞에서 소리를 앞당기면 예외가 나는데 렌더는 성공으로 끝난다
+   (`sfx()` 가 현재 시각을 보고 잘라낸다)
+3. `ffmpeg concat -c copy` 로 이어붙일 때 첫 파일에 오디오가 없으면
+   뒤 소리가 전부 버려진다 (`mv.py join` 이 오디오를 정규화한다)
+
+```bash
+python3 skills/manim-video/scripts/mv.py join out.mp4 A.mp4 B.mp4 C.mp4
+python3 skills/manim-video/scripts/qc.py stats out.mp4   # 오디오 트랙 확인
+```
+
+레포의 `assets/sfx/*.wav` 는 ffmpeg 로 합성한 자리표시자다.
+실제 음원으로 갈아끼우면 된다. 자세한 건 `references/audio.md`.
 
 ---
 

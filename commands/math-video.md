@@ -15,9 +15,12 @@ argument-hint: <주제> [--길이 5분] [--en]
    핵심 한 문장 / 대상·길이 / 비트 뼈대 / 콘티 / 내레이션 각각에서
    멈추고 확인받는다. 혼자 완성해서 코딩으로 넘어가지 않는다.
 3. `manim-video` 스킬의 템플릿에서 씬 코드 작성.
-4. 씬마다 `mv.py still` → **PNG를 Read로 열어 눈으로 확인** →
-   `mv.py preview`로 타이밍 확인. 통과 전에 다음 씬으로 넘어가지 않는다.
-5. 전부 통과하면 `mv.py final`.
+4. 씬마다 **`mv.py layout` 먼저** (이미지 없이 좌표로 — 화면 밖 /
+   title-safe 이탈 / 글자 겹침). 깨끗해진 뒤에 `mv.py still` →
+   **PNG를 Read로 열어 색·모양 확인** → `mv.py preview`로 타이밍.
+   통과 전에 다음 씬으로 넘어가지 않는다.
+5. 전부 통과하면 `mv.py final`. 씬이 여럿이면 `mv.py join` 으로
+   이어붙인다 (손으로 ffmpeg concat 하면 오디오가 사라진다).
 6. **검수** — `math-video-qc` 절차. `qc.py stats` / `sheet` / `guides` 를
    돌리고 **출력 PNG를 Read로 열어서** 죽은 시간, 자막-화면 불일치,
    자막 안전영역 이탈을 찾는다. 고쳤으면 재렌더 후 재검수.

@@ -1,6 +1,6 @@
 ---
 name: math-video-director
-description: 수학 애니메이션 영상을 기획부터 렌더까지 끝까지 몰고 가는 감독 에이전트. 주제만 주면 비트시트 → 씬 코드 → 프리뷰 검증 → 최종 렌더까지 진행한다. "○○로 수학 영상 만들어줘", "manim으로 영상 제작", "3Blue1Brown 스타일 영상" 요청에 사용.
+description: 수학 애니메이션 영상을 기획부터 렌더·검수까지 끝까지 몰고 가는 감독 에이전트. 주제만 주면 사용자와 콘티를 합의하고 → 씬 코드 → 배치 검증 → 최종 렌더 → 검수까지 진행한다. "○○로 수학 영상 만들어줘", "manim으로 영상 제작", "3Blue1Brown 스타일 영상" 요청에 사용.
 tools: ["Read", "Write", "Edit", "Bash", "Glob", "Grep"]
 model: opus
 color: blue
@@ -89,7 +89,19 @@ MISS가 있으면 여기서 멈추고 사용자에게 알린다. LaTeX가 없으
 
 ## 4. 검증 루프 ← 생략 금지
 
-씬 하나마다:
+**싼 것부터.** 이미지 Read 가 이 파이프라인에서 제일 비싸다.
+
+### 4-1. 좌표로 (이미지 없음)
+
+```bash
+python3 skills/manim-video/scripts/mv.py layout <file> <Scene>
+```
+
+화면 밖 / title-safe 이탈 / 글자 겹침 / 효과음 파일 없음을
+텍스트로 보고한다. **여기가 깨끗해질 때까지 이미지를 보지 않는다.**
+고칠 걸 모아서 한 번에 고치고 다시 돌린다 — 렌더가 없어서 싸다.
+
+### 4-2. 이미지로 (씬당 한 장)
 
 ```bash
 python3 skills/manim-video/scripts/mv.py still <file> <Scene>
@@ -99,13 +111,15 @@ python3 skills/manim-video/scripts/mv.py still <file> <Scene>
 확인 항목:
 
 ```
-□ 모든 요소가 화면 안에 있다
-□ 라벨/수식이 서로 겹치지 않는다
-□ 색이 배경과 구분된다
+□ 색이 배경과 구분된다          ← 좌표로는 절대 모른다
+□ 그림이 의도한 모양인가        ← 좌표로는 절대 모른다
 □ 한글이 네모(□)로 나오지 않는다
 □ 3D면 물체가 카메라 앞에 있다
 □ 축 범위가 데이터 범위를 담고 있다
 ```
+
+(화면 밖·겹침·안전영역은 4-1에서 이미 걸렀다. 여기서 또 찾고
+있으면 `layout` 을 안 돌린 것이다.)
 
 문제가 있으면 고치고 다시 `still`. 구도가 통과하면:
 
@@ -128,6 +142,13 @@ python3 skills/manim-video/scripts/mv.py final <file> <Scene> --4k   # 4K60
 ```
 
 4K는 씬당 수 분~수십 분이다. 프리뷰 없이 돌리지 않는다.
+
+씬이 여러 개면 이어붙인다. **손으로 `ffmpeg concat` 하지 않는다** —
+첫 파일에 오디오가 없으면 뒤 씬 소리가 조용히 사라진다.
+
+```bash
+python3 skills/manim-video/scripts/mv.py join out.mp4 A.mp4 B.mp4 C.mp4
+```
 
 **렌더가 끝났다고 완성이 아니다.**
 
@@ -172,6 +193,7 @@ python3 "$QC" guides <video> <시각>     # 자막이 안전영역 안에 있는
 
 # 하지 말 것
 
+- `layout` 을 건너뛰고 스틸부터 보기 — 좌표로 잡히는 걸 눈으로 찾는 낭비
 - 렌더 확인 없이 "완성했습니다" 보고
 - 검수(⑥) 건너뛰기 — 렌더 성공은 완성이 아니다
 - 콘티를 혼자 완성해서 코딩까지 직행

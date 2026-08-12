@@ -10,6 +10,8 @@
 """
 
 import os
+import sys
+from pathlib import Path
 
 from manim import *
 
@@ -110,6 +112,155 @@ class MathScene(Scene):
         if self._sub is not None:
             self.play(FadeOut(self._sub), run_time=0.3)
             self._sub = None
+
+    # ------------------------------------------------------------ 효과음
+
+    def sfx(self, name: str, gain: float = -8.0, ahead: float = 0.06):
+        """효과음을 지금 시점에 깐다.
+
+        name 은 assets/sfx/ 안의 파일명(확장자 생략 가능) 또는 전체 경로.
+        ahead 만큼 **앞당겨** 재생한다 — 소리는 화면보다 조금 먼저 나야
+        붙어서 들린다.
+
+        파일이 없으면 조용히 넘어가지 않고 경고를 찍는다. 소리가 빠진 건
+        렌더 결과를 봐서는 알 수 없기 때문이다.
+        """
+        path = resolve_sfx(name)
+        if path is None:
+            print(f"[sfx] 없음: {name} (찾은 곳: {SFX_DIR}) — 소리 없이 진행",
+                  file=sys.stderr)
+            return
+
+        # 씬 맨 앞에서 앞당기면 타임스탬프가 음수가 되어 manim 이
+        # ValueError 를 낸다. 그런데 그 예외를 렌더러가 삼키고 렌더는
+        # "성공"으로 끝난다 — 소리만 조용히 빠진다. 그래서 여기서 막는다.
+        now = float(getattr(self.renderer, "time", 0.0) or 0.0)
+        offset = -min(abs(ahead), now)
+        self.add_sound(str(path), gain=gain, time_offset=offset)
+
+    # ------------------------------------------------- 레이아웃 자동 점검
+
+    def play(self, *args, **kwargs):
+        result = super().play(*args, **kwargs)
+        self._play_index = getattr(self, "_play_index", -1) + 1
+        if LAYOUT_CHECK:
+            report_layout(self, f"play#{self._play_index}")
+        return result
+
+
+# ---------------------------------------------------------------- 효과음
+
+SFX_DIR = Path(os.environ.get("MV_SFX_DIR", "assets/sfx"))
+SFX_EXTS = (".wav", ".mp3", ".ogg", ".flac", ".m4a", ".aiff")
+
+
+def resolve_sfx(name: str) -> Path | None:
+    """효과음 파일을 찾는다. 확장자 없이 이름만 줘도 된다."""
+    candidate = Path(name)
+    if candidate.is_file():
+        return candidate
+    if candidate.suffix:
+        path = SFX_DIR / candidate.name
+        return path if path.is_file() else None
+    for ext in SFX_EXTS:
+        path = SFX_DIR / f"{name}{ext}"
+        if path.is_file():
+            return path
+    return None
+
+
+# ------------------------------------------------------- 레이아웃 점검
+
+# MV_LAYOUT=1 이면 self.play 마다 화면 배치를 좌표로 검사해 텍스트로 찍는다.
+# 스틸 PNG를 Read 하지 않고도 화면 밖 / 안전영역 이탈 / 글자 겹침을 잡을 수
+# 있다 — 이미지 한 장이 텍스트 리포트 수십 줄보다 훨씬 비싸다.
+LAYOUT_CHECK = os.environ.get("MV_LAYOUT", "") not in ("", "0", "false")
+
+FRAME_HALF_W = config.frame_width / 2      # 7.11
+FRAME_HALF_H = config.frame_height / 2     # 4.0
+TITLE_SAFE = 0.90                          # 방송 기준. 이 밖은 잘릴 수 있다
+SAFE_HALF_W = FRAME_HALF_W * TITLE_SAFE
+SAFE_HALF_H = FRAME_HALF_H * TITLE_SAFE
+
+TEXTLIKE = (Text, MarkupText, MathTex, Tex, SingleStringMathTex)
+
+
+def _describe(mob) -> str:
+    name = type(mob).__name__
+    for attr in ("text", "tex_string"):
+        value = getattr(mob, attr, None)
+        if isinstance(value, str) and value.strip():
+            snippet = value.strip().replace("\n", " ")[:22]
+            return f"{name}('{snippet}')"
+    return name
+
+
+def _box(mob):
+    """(left, right, bottom, top). 점이 없으면 None."""
+    if not mob.get_all_points().size:
+        return None
+    return (
+        float(mob.get_left()[0]), float(mob.get_right()[0]),
+        float(mob.get_bottom()[1]), float(mob.get_top()[1]),
+    )
+
+
+def _is_textlike(mob) -> bool:
+    if isinstance(mob, TEXTLIKE):
+        return True
+    subs = getattr(mob, "submobjects", [])
+    return bool(subs) and all(isinstance(s, TEXTLIKE) for s in subs)
+
+
+def report_layout(scene, label: str = "") -> list[str]:
+    """현재 화면 배치를 좌표로 검사해 문제를 텍스트로 돌려준다.
+
+    잡는 것: 화면 밖 / title-safe 밖 / 글자끼리 겹침.
+    못 잡는 것: 색 대비, 의미가 통하는지, 움직임의 자연스러움.
+    그건 여전히 눈으로 봐야 한다.
+    """
+    problems: list[str] = []
+    boxed = []
+
+    for mob in scene.mobjects:
+        box = _box(mob)
+        if box is None:
+            continue
+        left, right, bottom, top = box
+        if getattr(mob, "get_fill_opacity", None) and not mob.get_all_points().size:
+            continue
+        boxed.append((mob, box))
+
+        if right > FRAME_HALF_W + 1e-3 or left < -FRAME_HALF_W - 1e-3:
+            problems.append(
+                f"{_describe(mob)} 화면 좌우 밖 "
+                f"(x {left:.2f}~{right:.2f}, 한계 ±{FRAME_HALF_W:.2f})")
+        elif top > FRAME_HALF_H + 1e-3 or bottom < -FRAME_HALF_H - 1e-3:
+            problems.append(
+                f"{_describe(mob)} 화면 상하 밖 "
+                f"(y {bottom:.2f}~{top:.2f}, 한계 ±{FRAME_HALF_H:.2f})")
+        elif _is_textlike(mob) and (
+            right > SAFE_HALF_W or left < -SAFE_HALF_W
+            or top > SAFE_HALF_H or bottom < -SAFE_HALF_H
+        ):
+            problems.append(
+                f"{_describe(mob)} title-safe 밖 "
+                f"(x {left:.2f}~{right:.2f}, y {bottom:.2f}~{top:.2f}, "
+                f"안전 ±{SAFE_HALF_W:.2f}/±{SAFE_HALF_H:.2f})")
+
+    texts = [(m, b) for m, b in boxed if _is_textlike(m)]
+    for i, (mob_a, box_a) in enumerate(texts):
+        for mob_b, box_b in texts[i + 1:]:
+            overlap_w = min(box_a[1], box_b[1]) - max(box_a[0], box_b[0])
+            overlap_h = min(box_a[3], box_b[3]) - max(box_a[2], box_b[2])
+            if overlap_w > 0.02 and overlap_h > 0.02:
+                problems.append(
+                    f"{_describe(mob_a)} ↔ {_describe(mob_b)} 글자 겹침 "
+                    f"({overlap_w:.2f}×{overlap_h:.2f})")
+
+    for problem in problems:
+        print(f"[layout] {label} {problem}", file=sys.stderr)
+    return problems
 
 
 # ---------------------------------------------------------------- 데모

@@ -40,15 +40,18 @@ LaTeX가 없는 환경이면 `MathTex`/`Tex`는 전부 실패한다. 그 경우
 ① 기획      주제 → 한 문장 핵심 → 콘티        math-storyboard (사용자와 함께)
 ② 씬 분할   비트 → Scene 클래스 (1 Scene = 1 아이디어 = 20~60초)
 ③ 코딩      템플릿에서 시작 → 씬 하나씩
-④ 프리뷰    저해상도 스틸/영상으로 눈으로 확인 → 수정 (루프)
+④ 검증      layout(텍스트) → still(이미지) → preview (루프)
 ⑤ 최종      1080p 또는 4K 렌더
 ⑥ 검수      렌더된 영상을 프레임으로 뜯어 확인  math-video-qc
 ```
 
 **한 번에 전체 영상을 렌더하지 않는다.** 원본 워크플로우의 핵심은
 `checkpoint_paste` — 상태를 캐싱해 짧은 구간만 반복 확인하는 것이다.
-Claude Code에서의 등가물은 **④ 프리뷰 루프**(아래 4절)다. 이 루프를
+Claude Code에서의 등가물은 **④ 검증 루프**(아래 4절)다. 이 루프를
 건너뛰고 만든 애니메이션은 거의 항상 타이밍이 틀린다.
+
+④ 안에서도 순서가 있다: 좌표로 잡히는 건 `layout`(텍스트)으로,
+눈으로만 알 수 있는 건 `still`(이미지)로. 비싼 걸 나중에 쓴다.
 
 ④와 ⑥은 보는 대상이 다르다. ④는 **정지 화면 하나의 구도**를,
 ⑥은 **완성된 영상의 흐름**을 본다. ④만으로는 죽은 시간, 자막과
@@ -132,9 +135,32 @@ Claude Code에서의 등가물은 **④ 프리뷰 루프**(아래 4절)다. 이 
 
 ---
 
-## 4. 프리뷰 루프 ← 가장 중요
+## 4. 검증 루프 ← 가장 중요
 
 수정 → 확인 사이클을 **초 단위**로 유지한다.
+그리고 **싼 것부터 돌린다.** 이 파이프라인에서 제일 비싼 동작은
+렌더된 이미지를 Read 하는 것이다.
+
+### 4-1. 먼저 좌표로 (이미지 없음, 반복 무료)
+
+```bash
+python3 "$MV" layout scenes/lorenz.py LorenzAttractor
+```
+
+씬을 끝까지 돌리되 이미지를 만들지 않고, 매 `play` 마다 배치를
+좌표로 검사해 텍스트로 보고한다 — 화면 밖 / title-safe 이탈 /
+글자 겹침 / 효과음 파일 없음.
+
+```
+배치 문제 1종:
+  [play#19~play#21] MathTex('r') title-safe 밖 (x 6.28~6.47, 안전 ±6.40)
+```
+
+**여기가 깨끗해질 때까지 이미지를 보지 않는다.** 좌표로 잡을 수
+있는 걸 눈으로 찾으면 같은 스틸을 몇 번씩 다시 보게 된다.
+`scene_base.MathScene` 을 상속한 씬에서 동작한다.
+
+### 4-2. 그다음 이미지로 (씬당 한 장)
 
 ```bash
 # 마지막 프레임만 PNG로 (가장 빠름, 구도 확인용)
@@ -148,17 +174,20 @@ python3 "$MV" preview scenes/lorenz.py LorenzAttractor
 ```
 
 **`still`로 나온 PNG는 Read 툴로 직접 열어서 본다.** 이게
-`checkpoint_paste`의 대체물이다. 구도가 잘렸는지, 라벨이 겹쳤는지,
-색이 배경과 붙는지는 코드만 봐서는 절대 모른다.
+`checkpoint_paste`의 대체물이다. 색이 배경과 붙는지, 그림이 의도한
+모양인지, 한글이 네모로 나오는지는 좌표로는 절대 모른다.
 
 루프:
 ```
-still → Read(png) → 구도 문제 발견 → 코드 수정 → still → Read …
-구도 OK → preview(mp4) → 타이밍 문제 → run_time 수정 → preview …
-타이밍 OK → 다음 씬
+layout → 텍스트 보고 전부 수정 → layout … (깨끗해질 때까지)
+       → still → Read(png) → 색·모양 확인
+       → preview(mp4) → 타이밍 → run_time 수정
+       → 다음 씬
 ```
 
 씬 하나가 통과하기 전에 다음 씬으로 넘어가지 않는다.
+**같은 씬의 스틸을 세 번 넘게 보고 있으면** `layout` 으로 돌아간다.
+비용 순서 전체는 `references/token-budget.md`.
 
 ---
 
@@ -214,7 +243,33 @@ python3 "$QC" strip  out.mp4 36 41 -n 8   # 특정 구간 촘촘히 → 동작 �
 
 ---
 
-## 7. 한국어 자막·라벨
+## 7. 효과음
+
+`assets/sfx/` 에 음원을 두고:
+
+```python
+self.sfx("whoosh", gain=-12)      # play **앞에** 놓는다
+self.play(Create(circle), run_time=1.5)
+```
+
+한 씬에 3개를 넘기지 않는다. 과하면 유치해진다.
+
+**소리는 조용히 사라진다.** 함정 셋 — ① 캐시가 켜져 있으면
+`add_sound` 가 아무 일도 안 한다(`mv.py` 가 자동으로 끈다),
+② 씬 맨 앞에서 앞당기면 예외가 나는데 렌더는 성공으로 끝난다,
+③ `ffmpeg concat -c copy` 로 이어붙이면 첫 파일에 오디오가 없을 때
+뒤 소리가 전부 버려진다.
+
+```bash
+python3 "$MV" join out.mp4 Hook.mp4 Rings.mp4 Unroll.mp4 Result.mp4
+python3 "$QC" stats out.mp4        # 오디오 트랙이 실제로 붙었는지
+```
+
+자세한 건 `references/audio.md`.
+
+---
+
+## 8. 한국어 자막·라벨
 
 `Text`는 한글 폰트를 지정해야 한다. `MathTex`/`Tex`는 기본
 LaTeX 템플릿에서 한글이 깨진다.
@@ -232,13 +287,15 @@ Text("초기 조건의 미세한 차이", font="NanumGothic", font_size=36)
 
 ---
 
-## 8. 참조 파일 색인
+## 9. 참조 파일 색인
 
 | 파일 | 내용 |
 |---|---|
 | `references/manim-ce-cookbook.md` | CE API 치트시트 — mobject, 애니메이션, 업데이터, 카메라, 3D, LaTeX |
 | `references/3b1b-style.md` | 3Blue1Brown 연출 문법 — 색·타이밍·카메라·구도의 실제 규칙 |
 | `references/qc-checklist.md` | 검수 체크리스트 — 자동 검사 임계값, 자막·안전영역, 동작, 보고 형식 |
+| `references/token-budget.md` | 언제 이미지를 보고 언제 텍스트로 때우나 — 비용 순서 |
+| `references/audio.md` | 효과음·음악 — `sfx()`, 조용히 실패하는 함정 셋, 음량, 저작권 |
 | `references/typography-korean.md` | 한글 폰트, `Text` vs `MathTex`, 자막 레이아웃 |
 | `references/manimgl.md` | ManimGL(3b1b 원본) 전환 — `embed()`, `checkpoint_paste`, CE와의 API 차이 |
 | `references/troubleshooting.md` | LaTeX 에러, 폰트 깨짐, 렌더 실패, 성능 문제 |

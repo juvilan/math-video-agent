@@ -81,6 +81,7 @@ class Hook(MathScene):
         r_label = MathTex("r", font_size=40, color=YELLOW)
         r_label.next_to(radius_line, UP, buff=0.15)
 
+        self.sfx("whoosh", gain=-14)
         self.play(Create(circle), run_time=1.6)
         self.play(Create(radius_line), Write(r_label), run_time=0.9)
         self.wait(0.6)
@@ -100,6 +101,7 @@ class Hook(MathScene):
         self.wait(0.8)
 
         self.say("외우긴 했는데, 왜 그럴까요?", 2.6)
+        self.sfx("pop", gain=-10)
         self.play(FadeIn(question, scale=1.4), run_time=0.6)
         self.play(Indicate(question, color=YELLOW, scale_factor=1.3), run_time=0.9)
         self.wait(1.0)
@@ -120,6 +122,7 @@ class Rings(MathScene):
 
         self.say("원을 아주 얇은 고리로 잘라봅니다", 2.4)
         # 안쪽부터 바깥으로 차오르게. lag_ratio를 주면 한꺼번에 터지지 않는다.
+        self.sfx("whoosh", gain=-12)
         self.play(
             LaggedStart(*[Create(r) for r in rings], lag_ratio=0.012),
             run_time=2.4,
@@ -144,6 +147,7 @@ class Rings(MathScene):
             target.animate.set_stroke(color=YELLOW, width=5),
             run_time=1.0,
         )
+        self.sfx("tick", gain=-14)
         self.play(Create(radius_line), Write(t_label), run_time=0.8)
         self.wait(0.4)
 
@@ -184,6 +188,7 @@ class Unroll(MathScene):
         lines = make_unrolled()
         # VGroup 순서가 서로 대응하므로 고리 i 가 선 i 로 간다.
         # 시간이 흐르는 변형이 아니라 형태 변형이므로 rate_func는 기본 smooth.
+        self.sfx("whoosh", gain=-10)
         self.play(
             LaggedStart(
                 *[Transform(ring, line) for ring, line in zip(rings, lines)],
@@ -217,7 +222,9 @@ class Unroll(MathScene):
 
         # 높이 표시는 삼각형 **바깥**에 둔다. 안쪽에 그리면 고리들이 만든
         # 밝은 면에 묻혀서 스틸에서 아예 안 보인다 (실제로 그래서 옮겼다).
-        guide_x = PI * R + 0.35
+        # +0.35 로 두면 브레이스와 r 라벨이 title-safe 밖으로 나간다
+        # (mv.py layout 이 좌표로 잡아줬다). 0.12 가 상한.
+        guide_x = PI * R + 0.12
         guide = DashedLine(
             APEX, np.array([guide_x, APEX[1], 0.0]),
             stroke_width=2, color=GREY_B, dash_length=0.08,
@@ -276,6 +283,7 @@ class Result(MathScene):
         self.wait(1.0)
 
         box = SurroundingRectangle(step2, color=PALETTE["accent"], buff=0.25, stroke_width=3)
+        self.sfx("chime", gain=-12)
         self.play(Create(box), run_time=0.8)
         self.say("원의 넓이, 파이 알 제곱입니다", 3.2)
         self.wait(1.0)

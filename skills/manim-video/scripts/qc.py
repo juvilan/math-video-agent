@@ -95,6 +95,19 @@ def _video_info(video: Path) -> dict:
     }
 
 
+def _audio_info(video: Path) -> dict | None:
+    data = _probe(video)
+    stream = next((s for s in data["streams"] if s["codec_type"] == "audio"), None)
+    if stream is None:
+        return None
+    return {
+        "codec": stream.get("codec_name", "?"),
+        "channels": stream.get("channels", "?"),
+        "rate": stream.get("sample_rate", "?"),
+        "duration": float(stream.get("duration", 0.0)),
+    }
+
+
 def _parse_time(text: str) -> float:
     if ":" not in text:
         return float(text)
@@ -152,6 +165,21 @@ def cmd_stats(args) -> int:
     print(f"용량      {info['size'] / 1024 / 1024:.1f} MB")
 
     problems = 0
+
+    # 오디오는 없어도 렌더가 "성공"하므로 눈으로는 절대 안 보인다.
+    # 효과음을 넣었는데 트랙이 없으면 어딘가에서 조용히 빠진 것이다.
+    audio = _audio_info(video)
+    if audio is None:
+        print("오디오    없음")
+    else:
+        print(f"오디오    {audio['codec']} {audio['channels']}ch "
+              f"{audio['rate']}Hz, {audio['duration']:.2f}s")
+        gap = info["duration"] - audio["duration"]
+        if gap > 0.5:
+            problems += 1
+            print(f"\n[오디오 길이] 영상보다 {gap:.2f}s 짧다. "
+                  f"이대로 이어붙이면 뒤 씬 소리가 밀리거나 사라진다 — "
+                  f"mv.py join 을 쓴다.")
 
     # 검은 화면 — 씬 사이 공백, 객체를 add 안 한 구간, 카메라가 빈 곳을 보는 경우.
     #

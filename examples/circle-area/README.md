@@ -26,10 +26,14 @@ circle_area.py    ②③ 씬 4개 — Hook / Rings / Unroll / Result
 cd examples/circle-area
 MV=../../skills/manim-video/scripts/mv.py
 QC=../../skills/manim-video/scripts/qc.py
+export MV_SFX_DIR=../../assets/sfx          # 효과음 위치
 
 python3 $MV check                              # 환경 점검
 
-# ④ 검증 루프 — 스틸을 뽑아 눈으로 본 뒤 고친다
+# ④-1 좌표로 (이미지 없음, 반복 무료)
+for s in Hook Rings Unroll Result; do python3 $MV layout circle_area.py $s; done
+
+# ④-2 이미지로 — 깨끗해진 뒤에
 python3 $MV still   circle_area.py Unroll
 python3 $MV still   circle_area.py Rings -n 0,7   # 강조 구간만
 python3 $MV preview circle_area.py Unroll         # 타이밍 확인
@@ -40,13 +44,13 @@ for s in Hook Rings Unroll Result; do
 done
 ```
 
-씬을 하나로 잇는 건 Manim의 일이 아니라 편집의 일이지만,
-빠르게 확인하려면:
+씬 잇기 — **손으로 `ffmpeg concat` 하지 않는다.** 첫 파일에 오디오가
+없으면 뒤 씬 소리가 경고 없이 사라진다.
 
 ```bash
 cd media/videos/circle_area/1080p60
-printf "file 'Hook.mp4'\nfile 'Rings.mp4'\nfile 'Unroll.mp4'\nfile 'Result.mp4'\n" > concat.txt
-ffmpeg -f concat -safe 0 -i concat.txt -c copy circle-area-full.mp4
+python3 ../../../../../../skills/manim-video/scripts/mv.py join \
+    circle-area-full.mp4 Hook.mp4 Rings.mp4 Unroll.mp4 Result.mp4
 ```
 
 ```bash
@@ -54,6 +58,18 @@ ffmpeg -f concat -safe 0 -i concat.txt -c copy circle-area-full.mp4
 python3 $QC stats  media/videos/circle_area/1080p60/circle-area-full.mp4
 python3 $QC sheet  media/videos/circle_area/1080p60/circle-area-full.mp4 -g 4x4
 python3 $QC guides media/videos/circle_area/1080p60/circle-area-full.mp4 46.0
+```
+
+## 효과음
+
+6군데에 들어 있다 (`whoosh` ×3, `pop`, `tick`, `chime`).
+음원은 레포 루트 `assets/sfx/` 의 **ffmpeg 합성 자리표시자**다 —
+사인파와 핑크노이즈라 저작권 문제가 없고, 실제 음원으로 갈아끼우라고
+넣어둔 것이다.
+
+```python
+self.sfx("whoosh", gain=-12)      # play 앞에 놓는다
+self.play(Create(circle), run_time=1.6)
 ```
 
 ## 아이디어
@@ -94,6 +110,31 @@ python3 $QC guides media/videos/circle_area/1080p60/circle-area-full.mp4 46.0
 
 수정 후 재렌더 → 재검수까지 돌렸다. 남은 정지 2건은 결론 수식과
 훅의 물음표를 읽는 시간이라 의도적으로 남겼다.
+
+## ④-1 좌표 검사(`layout`)가 잡은 것
+
+검수(⑥)까지 통과한 뒤에 `mv.py layout` 을 붙였더니 **이미지로는
+아무도 못 봤던 게 하나 더 나왔다.**
+
+```
+[play#19~play#21] MathTex('r') title-safe 밖
+                  (x 6.28~6.47, y -0.05~0.15, 안전 ±6.40/±3.60)
+```
+
+`Unroll` 의 높이 라벨이 안전영역을 0.07 유닛 넘어가 있었다.
+`guides` 로 본 프레임(50초)에는 그 라벨이 아직 안 떠 있어서
+안 보였던 것. **이미지 한 장 없이, 토큰 거의 0으로 잡았다.**
+
+## 효과음을 붙이다 발견한 것
+
+| 증상 | 원인 |
+|---|---|
+| 렌더는 성공인데 오디오 트랙이 없음 | manim 캐시가 켜져 있으면 캐시된 애니메이션은 `skip_animations=True` 로 돌고 `add_sound` 가 조용히 return 한다. `mv.py` 가 소스에 소리가 있으면 캐시를 자동으로 끄게 고침 |
+| 씬 첫 소리에서 traceback, 그런데 렌더는 성공 | `time_offset` 이 음수라 타임스탬프가 0 미만 → `ValueError`. 렌더러가 그 예외를 삼킨다. `sfx()` 가 현재 시각을 보고 앞당길 양을 잘라내게 고침 |
+| 이어붙이니 소리가 전부 사라짐 | `concat -c copy` 는 첫 파일에 오디오가 없으면 뒤 소리를 버린다. `mv.py join` 이 모든 입력에 오디오를 만들어 길이를 맞추게 함 |
+
+셋 다 **에러 없이 소리만 없어지는** 종류다. `qc.py stats` 가
+오디오 트랙과 길이를 항상 찍는 이유.
 
 ## 기획 대비 실제 길이
 

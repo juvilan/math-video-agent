@@ -16,12 +16,17 @@ description: Manim으로 3Blue1Brown 스타일 수학 애니메이션 영상을 
 
 ## 0. 시작 전 반드시 확인
 
+먼저 이 스킬의 렌더 CLI 경로를 잡는다. 아래 모든 명령이 이걸 쓴다.
+`$MV`는 **이 SKILL.md가 있는 디렉터리** 기준이다.
+
 ```bash
-python3 skills/manim-video/scripts/mv.py check
+MV="<이 스킬 디렉터리>/scripts/mv.py"     # 예: skills/manim-video/scripts/mv.py
+python3 "$MV" check
 ```
 
 이 명령이 실패하면 **코드를 쓰기 전에** 환경부터 고친다.
-`scripts/setup_manim.sh`가 설치를 처리한다 (manim CE, LaTeX, ffmpeg, 한글 폰트).
+`<스킬 디렉터리>/scripts/setup_manim.sh`가 설치를 처리한다
+(manim CE, LaTeX, ffmpeg, 한글 폰트).
 
 LaTeX가 없는 환경이면 `MathTex`/`Tex`는 전부 실패한다. 그 경우
 사용자에게 알리고 `Text` + 유니코드 수학기호로 대체할지 확인받는다.
@@ -132,13 +137,13 @@ Claude Code에서의 등가물은 **④ 프리뷰 루프**(아래 4절)다. 이 
 
 ```bash
 # 마지막 프레임만 PNG로 (가장 빠름, 구도 확인용)
-python3 skills/manim-video/scripts/mv.py still scenes/lorenz.py LorenzAttractor
+python3 "$MV" still scenes/lorenz.py LorenzAttractor
 
 # 특정 애니메이션 구간만 (n번째 play부터 m번째까지)
-python3 skills/manim-video/scripts/mv.py still scenes/lorenz.py LorenzAttractor -n 3,5
+python3 "$MV" still scenes/lorenz.py LorenzAttractor -n 3,5
 
 # 저해상도 동영상 (480p15) — 타이밍 확인용
-python3 skills/manim-video/scripts/mv.py preview scenes/lorenz.py LorenzAttractor
+python3 "$MV" preview scenes/lorenz.py LorenzAttractor
 ```
 
 **`still`로 나온 PNG는 Read 툴로 직접 열어서 본다.** 이게
@@ -160,13 +165,13 @@ still → Read(png) → 구도 문제 발견 → 코드 수정 → still → Rea
 
 ```bash
 # 1080p60
-python3 skills/manim-video/scripts/mv.py final scenes/lorenz.py LorenzAttractor
+python3 "$MV" final scenes/lorenz.py LorenzAttractor
 
 # 4K60
-python3 skills/manim-video/scripts/mv.py final scenes/lorenz.py LorenzAttractor --4k
+python3 "$MV" final scenes/lorenz.py LorenzAttractor --4k
 
 # 투명 배경 (편집 툴에서 오버레이용, .mov)
-python3 skills/manim-video/scripts/mv.py final scenes/lorenz.py LorenzAttractor --transparent
+python3 "$MV" final scenes/lorenz.py LorenzAttractor --transparent
 ```
 
 출력은 `media/videos/<파일명>/<해상도>/<Scene>.mp4`.

@@ -1,0 +1,32 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "math-video-agent",
+  "version": "0.1.0",
+  "description": "수학 애니메이션 영상 제작 플러그인 — Manim CE 기반, 에이전트 1 / 스킬 2 / 커맨드 3 / 씬 템플릿 6",
+  "owner": {
+    "name": "juvilan",
+    "url": "https://github.com/juvilan"
+  },
+  "plugins": [
+    {
+      "name": "math-video-agent",
+      "description": "Manim으로 3Blue1Brown 스타일 수학 영상을 기획부터 4K 렌더까지. 스토리보드 스킬, Manim CE 쿡북, 로렌츠 끌개를 포함한 씬 템플릿 6종, 렌더 검증 CLI를 제공한다.",
+      "version": "0.1.0",
+      "author": {
+        "name": "juvilan",
+        "url": "https://github.com/juvilan"
+      },
+      "source": ".",
+      "category": "content-creation",
+      "homepage": "https://github.com/juvilan/math-video-agent",
+      "tags": [
+        "manim",
+        "math",
+        "animation",
+        "video",
+        "3blue1brown",
+        "education"
+      ]
+    }
+  ]
+}

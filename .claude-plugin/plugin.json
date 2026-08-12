@@ -1,0 +1,22 @@
+{
+  "name": "math-video-agent",
+  "version": "0.1.0",
+  "description": "Manim으로 3Blue1Brown 스타일 수학 애니메이션 영상을 기획·코딩·검증·렌더링하는 Claude Code 플러그인",
+  "author": {
+    "name": "juvilan",
+    "url": "https://github.com/juvilan"
+  },
+  "repository": "https://github.com/juvilan/math-video-agent",
+  "homepage": "https://github.com/juvilan/math-video-agent",
+  "license": "MIT",
+  "keywords": [
+    "manim",
+    "math",
+    "animation",
+    "video",
+    "3blue1brown",
+    "visualization",
+    "latex",
+    "education"
+  ]
+}

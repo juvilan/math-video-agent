@@ -1,0 +1,36 @@
+# Manim 출력
+media/
+# --media_dir 을 레포 루트로 바꿨을 때 나오는 것들.
+# 앞의 / 가 없으면 docs/images/ 까지 잡아먹고, 디렉터리가 통째로
+# 제외되면 아래 !docs/**/*.png 예외가 먹지 않는다.
+/videos/
+/images/
+/Tex/
+/texts/
+*.mp4
+*.mov
+*.gif
+*.png
+!docs/**/*.png
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+env/
+*.egg-info/
+
+# LaTeX 부산물
+*.aux
+*.log
+*.dvi
+*.xdv
+*.svg
+
+# OS / 에디터
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp

@@ -5,7 +5,7 @@
 
 | | |
 |---|---|
-| 길이 | 69.6초 (씬 4개) |
+| 길이 | 64.0초 (씬 4개) |
 | 대상 | 중1~중2 |
 | 해상도 | 1920×1080 @ 60fps |
 
@@ -25,6 +25,7 @@ circle_area.py    ②③ 씬 4개 — Hook / Rings / Unroll / Result
 ```bash
 cd examples/circle-area
 MV=../../skills/manim-video/scripts/mv.py
+QC=../../skills/manim-video/scripts/qc.py
 
 python3 $MV check                              # 환경 점검
 
@@ -48,6 +49,13 @@ printf "file 'Hook.mp4'\nfile 'Rings.mp4'\nfile 'Unroll.mp4'\nfile 'Result.mp4'\
 ffmpeg -f concat -safe 0 -i concat.txt -c copy circle-area-full.mp4
 ```
 
+```bash
+# ⑥ 검수 — 완성본을 프레임으로 뜯어본다
+python3 $QC stats  media/videos/circle_area/1080p60/circle-area-full.mp4
+python3 $QC sheet  media/videos/circle_area/1080p60/circle-area-full.mp4 -g 4x4
+python3 $QC guides media/videos/circle_area/1080p60/circle-area-full.mp4 46.0
+```
+
 ## 아이디어
 
 원을 얇은 고리로 자른다. 반지름 t인 고리의 길이는 2πt.
@@ -68,16 +76,36 @@ ffmpeg -f concat -safe 0 -i concat.txt -c copy circle-area-full.mp4
 | `Result` | `=`가 아래 수식 위에 겹침 | 두 수식 간격이 좁아 중간점이 아래 수식 안으로 들어감 |
 | `Hook` | LaTeX 컴파일 실패 | `MathTex(r"\text{넓이}")` — 한글은 기본 LaTeX 템플릿에서 못 쓴다. `Text` + `MathTex` 조합으로 분리 |
 
+## ⑥ 검수에서 걸린 것
+
+렌더가 끝난 뒤 `qc.py`로 완성본을 다시 뜯어봤다. **스틸 검사에서는
+하나도 안 걸렸던 것들이다** — 정지 화면 하나로는 보이지 않는 부류다.
+
+| 도구 | 발견 | 조치 |
+|---|---|---|
+| `stats` | 4초 이상 정지 3건 (7.9s/5.3s, 51.3s/5.5s, 57.7s/4.4s) | 51.3s 구간의 `wait` 축소. 나머지 둘은 결론을 읽는 시간이라 유지 |
+| `sheet` | 같은 자막이 4.3초 간격 두 칸에 걸침 — 15~20s, 41~46s | `LaggedStart run_time` 3.2→2.4, 홀드 축소 |
+| `sheet` | 자막 전환 순간 두 자막이 같은 자리에 겹쳐 뭉개짐 | `MathScene.say()` 의 `FadeTransform` → 순차 FadeOut/FadeIn |
+| `guides` | 자막이 title-safe(90%) 하단선에 걸침 | `subtitle()` buff 0.45→0.6 |
+
+뒤의 두 건은 예제가 아니라 **템플릿(`scene_base.py`) 쪽 버그**였다.
+이 예제를 검수하다 찾아서 템플릿을 고쳤으니 앞으로 만드는 모든
+영상에 적용된다.
+
+수정 후 재렌더 → 재검수까지 돌렸다. 남은 정지 2건은 결론 수식과
+훅의 물음표를 읽는 시간이라 의도적으로 남겼다.
+
 ## 기획 대비 실제 길이
 
-| 씬 | 기획 | 실제 |
-|---|---|---|
-| Hook | 14s | 13.3s |
-| Rings | 22s | 19.1s |
-| Unroll | 30s | 24.6s |
-| Result | 16s | 12.7s |
-| **합계** | **82s** | **69.6s** |
+| 씬 | 기획 | 초판 | 검수 후 |
+|---|---|---|---|
+| Hook | 14s | 13.3s | 12.6s |
+| Rings | 22s | 19.1s | 16.5s |
+| Unroll | 30s | 24.6s | 22.0s |
+| Result | 16s | 12.7s | 12.8s |
+| **합계** | **82s** | **69.6s** | **64.0s** |
 
-전체가 기획보다 15% 짧다. 비트시트의 길이 추정이 넉넉했던 쪽이고,
-자막을 읽는 데 부족한 구간은 없다. 내레이션을 실제로 녹음해 붙일
-때는 이 차이만큼 `wait`을 늘려 맞추면 된다.
+전체가 기획보다 22% 짧다. 비트시트의 길이 추정이 넉넉했던 쪽이고,
+검수에서 죽은 시간을 걷어내며 더 줄었다. 자막을 읽는 데 부족한
+구간은 없다. 내레이션을 실제로 녹음해 붙일 때는 이 차이만큼
+`wait`을 늘려 맞추면 된다.

@@ -3,8 +3,8 @@
 Manim으로 **3Blue1Brown 스타일 수학 애니메이션 영상**을 만드는
 Claude Code 플러그인.
 
-주제 한 줄을 주면 → 비트시트 → 씬 코드 → 프리뷰 검증 → 최종 렌더까지
-간다.
+주제 한 줄을 주면 → 콘티(같이 짠다) → 씬 코드 → 프리뷰 검증 →
+최종 렌더 → 완성본 검수까지 간다.
 
 방법론의 출처는 3Blue1Brown(Grant Sanderson)이 자신의 실제 제작
 과정을 공개한 영상
@@ -30,17 +30,20 @@ Claude Code 플러그인.
 
 ```
 agents/
-  math-video-director.md      기획→렌더 전 과정을 몰고 가는 감독 에이전트
+  math-video-director.md      기획→렌더→검수 전 과정을 몰고 가는 감독
+  math-video-qc.md            렌더된 영상을 프레임으로 뜯어보는 검수 담당
 commands/
   math-video.md               /math-video  — 주제 → 완성 영상
-  storyboard.md               /storyboard  — 기획서만
+  storyboard.md               /storyboard  — 콘티만 (사용자와 단계별로)
   mv-render.md                /mv-render   — 기존 씬을 검증 루프에 태워 렌더
+  mv-qc.md                    /mv-qc       — 완성된 영상 검수
 skills/
-  manim-video/                메인 스킬 — 파이프라인·코딩 규칙·프리뷰 루프
-    references/               CE 쿡북 / 3b1b 연출 문법 / 한글 / ManimGL / 트러블슈팅
+  manim-video/                메인 스킬 — 파이프라인·코딩 규칙·프리뷰 루프·검수
+    references/               CE 쿡북 / 3b1b 연출 문법 / 검수 체크리스트 /
+                              한글 / ManimGL / 트러블슈팅
     templates/                씬 템플릿 6종
-    scripts/                  mv.py (렌더 CLI), setup_manim.sh
-  math-storyboard/            기획 스킬 — 비트시트·내레이션·수식 받아쓰기
+    scripts/                  mv.py (렌더 CLI), qc.py (검수 CLI), setup_manim.sh
+  math-storyboard/            콘티 스킬 — 6단계로 사용자와 함께 기획
 docs/
   source-video-analysis.md    원본 영상 분석 + 이 레포로의 매핑
 ```
@@ -80,6 +83,7 @@ Claude Code에서:
 /math-video 로렌츠 끌개와 카오스 --길이 7분 --4k
 /storyboard 푸리에 변환 --대상 학부1학년
 /mv-render scenes/lorenz.py LorenzAttractor --4k
+/mv-qc media/videos/circle_area/1080p60/circle-area-full.mp4
 ```
 
 에이전트를 직접 부르려면:
@@ -93,8 +97,9 @@ math-video-director 에이전트로 "베이즈 정리" 영상 만들어줘
 ## 예제 — 파이프라인을 끝까지 돌린 결과
 
 [`examples/circle-area/`](examples/circle-area/) 에 주제 한 줄에서
-1080p60 완본(69.6초)까지 간 전체 기록이 있다. 기획서, 씬 코드,
-그리고 **검증 루프에서 실제로 걸린 버그 3건**이 그대로 남아 있다.
+1080p60 완본(64.0초)까지 간 전체 기록이 있다. 기획서, 씬 코드,
+그리고 **④ 검증에서 3건 + ⑥ 검수에서 4건**의 실제 버그 기록이
+그대로 남아 있다.
 
 ![원의 넓이 예제](docs/images/example-circle-area.png)
 
@@ -106,12 +111,17 @@ math-video-director 에이전트로 "베이즈 정리" 영상 만들어줘
 ## 파이프라인
 
 ```
-① 기획      주제 → 핵심 한 문장 → 비트시트          math-storyboard
+① 기획      주제 → 핵심 한 문장 → 콘티              math-storyboard (사용자와 함께)
 ② 씬 분할   비트 → Scene (1씬 = 1아이디어 = 20~60초)
 ③ 코딩      템플릿에서 시작                          manim-video/templates
 ④ 검증 ★   still(PNG) → 눈으로 확인 → preview(mp4)  mv.py
-⑤ 최종      1080p60 / 4K60 렌더 → 편집 툴로 인계     mv.py final
+⑤ 최종      1080p60 / 4K60 렌더                      mv.py final
+⑥ 검수 ★   완성본을 프레임으로 뜯어본다              qc.py + math-video-qc
 ```
+
+①은 **혼자 만들지 않는다.** 핵심 한 문장 / 대상·길이 / 비트 뼈대 /
+콘티 / 내레이션 다섯 지점에서 멈추고 확인받는다. 완성된 기획안을
+통째로 들이밀면 사용자는 고칠 데를 못 찾는다.
 
 ### ④가 핵심이다
 
@@ -127,6 +137,39 @@ Manim 코드는 문법이 통과해도 조용히 망가진다 — 객체가 화�
 있거나, 라벨이 겹치거나, 한글이 네모로 나오거나, 3D 카메라가
 물체 뒤를 보고 있어도 에러가 없다. **렌더한 그림을 보지 않은 씬은
 완성된 게 아니다.**
+
+### ⑥은 ④가 못 보는 걸 본다
+
+④는 **정지 화면 하나의 구도**를, ⑥은 **완성된 영상의 흐름**을 본다.
+정지 화면으로는 절대 안 보이는 것들이 있다:
+
+```bash
+QC=skills/manim-video/scripts/qc.py
+python3 $QC stats  out.mp4            # 검은 화면 / 4초 이상 정지 (자동)
+python3 $QC sheet  out.mp4 -g 4x4     # 전체를 16칸 대조표 한 장으로
+python3 $QC guides out.mp4 46.0       # title-safe + 자막 밴드 오버레이
+python3 $QC strip  out.mp4 17.5 19 -n 6   # 특정 구간 촘촘히
+```
+
+| 못 보던 것 | 잡는 법 |
+|---|---|
+| 자막이 4초 넘게 멈춰 있는 죽은 시간 | `stats` 자동 + `sheet`에서 같은 자막이 두 칸에 걸침 |
+| 자막은 "고리로 자릅니다"인데 화면엔 고리가 없음 | `sheet` 한 장 |
+| 자막이 title-safe 밖으로 나가 유튜브 UI에 덮임 | `guides` |
+| 자막 전환 순간 두 자막이 겹쳐 뭉개짐 | `sheet` / `strip` |
+| 변형 애니메이션 중간이 정체불명이 됨 | `strip` |
+
+`sheet` — 64초 영상을 16칸 한 장으로. 자막·화면·색을 한눈에 대조한다.
+
+![검수 대조표](docs/images/qc-contact-sheet.png)
+
+`guides` — title-safe(노랑)와 자막 밴드(청록)를 덧그려 자막이
+잘릴 위치에 있는지 판정한다.
+
+![안전영역 가이드](docs/images/qc-guides.png)
+
+실제로 이 레포의 예제 영상은 ④를 통과한 뒤 ⑥에서 4건이 더 나왔고,
+그중 둘은 예제가 아니라 **템플릿 쪽 버그**였다.
 
 ---
 
@@ -215,6 +258,10 @@ Final Cut으로 가져가서 편집한다.
 - `LorenzAttractor` — 궤적 8개가 한 덩어리로 뭉개짐. 5개로 축소.
 - `TitleDemo` — 마지막에 전부 FadeOut 되어 스틸이 검은 화면.
   스모크 테스트로 쓰이도록 화면을 남김.
+
+`qc.py`도 실제 렌더물에 돌려 임계값을 맞췄다. `blackdetect`의 흔한
+기본값은 이 스타일에서 멀쩡한 씬을 통째로 오탐해서 못 쓴다 —
+`pic_th=0.995, pix_th=0.07`로 잡아뒀다.
 
 문서(`references/`)의 API 기술은 CE 0.18~0.21 기준이며, 이 중
 실제 실행으로 확인된 것은 템플릿이 사용하는 범위다. ManimGL 절은

@@ -39,8 +39,12 @@ def kr(text: str, size: int = 36, color=WHITE, **kwargs) -> Text:
 
 
 def subtitle(text: str, size: int = 30) -> Text:
-    """화면 하단 자막. 내레이션 전문이 아니라 핵심 구절만 넣는다."""
-    return kr(text, size=size, color=GREY_A).to_edge(DOWN, buff=0.45)
+    """화면 하단 자막. 내레이션 전문이 아니라 핵심 구절만 넣는다.
+
+    buff 0.45 로 두면 1080p에서 title-safe(90%) 하단선에 글자가 걸친다
+    (qc.py guides 로 확인). 0.6 이 유튜브 진행바까지 피하는 최소값이다.
+    """
+    return kr(text, size=size, color=GREY_A).to_edge(DOWN, buff=0.6)
 
 
 def title_card(text: str, size: int = 52) -> Text:
@@ -90,10 +94,17 @@ class MathScene(Scene):
         new = subtitle(text)
         if self._sub is None:
             self.play(FadeIn(new, shift=UP * 0.2), run_time=0.4)
-        else:
-            self.play(FadeTransform(self._sub, new), run_time=0.4)
+            self.wait(max(duration - 0.4, 0))
+            self._sub = new
+            return
+
+        # 크로스페이드(FadeTransform)로 바꾸면 두 자막이 0.4초 동안 같은
+        # 자리에 겹쳐 글자가 뭉개진다 (qc.py sheet 로 확인). 글자끼리는
+        # 겹치지 않게 앞 자막을 먼저 지우고 새 자막을 넣는다.
+        self.play(FadeOut(self._sub, shift=DOWN * 0.15), run_time=0.22)
+        self.play(FadeIn(new, shift=UP * 0.15), run_time=0.22)
         self._sub = new
-        self.wait(max(duration - 0.4, 0))
+        self.wait(max(duration - 0.44, 0))
 
     def clear_subtitle(self):
         if self._sub is not None:

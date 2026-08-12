@@ -102,7 +102,7 @@ class Hook(MathScene):
         self.say("외우긴 했는데, 왜 그럴까요?", 2.6)
         self.play(FadeIn(question, scale=1.4), run_time=0.6)
         self.play(Indicate(question, color=YELLOW, scale_factor=1.3), run_time=0.9)
-        self.wait(1.6)
+        self.wait(1.0)
 
 
 # ------------------------------------------------------------------ 비트 2
@@ -122,10 +122,10 @@ class Rings(MathScene):
         # 안쪽부터 바깥으로 차오르게. lag_ratio를 주면 한꺼번에 터지지 않는다.
         self.play(
             LaggedStart(*[Create(r) for r in rings], lag_ratio=0.012),
-            run_time=3.2,
+            run_time=2.4,
         )
         self.remove(outline)
-        self.wait(0.8)
+        self.wait(0.4)
 
         # 고리 하나만 남기고 나머지를 죽여서 시선을 모은다
         target = rings[HIGHLIGHT]
@@ -138,14 +138,14 @@ class Rings(MathScene):
         t_label = MathTex("t", font_size=38, color=YELLOW)
         t_label.next_to(radius_line, DOWN, buff=0.12)
 
-        self.say("반지름이 t 인 고리 하나를 봅시다", 2.6)
+        self.say("반지름이 t 인 고리 하나를 봅시다", 2.2)
         self.play(
             others.animate.set_stroke(opacity=0.18),
             target.animate.set_stroke(color=YELLOW, width=5),
             run_time=1.0,
         )
         self.play(Create(radius_line), Write(t_label), run_time=0.8)
-        self.wait(0.8)
+        self.wait(0.4)
 
         circ = VGroup(
             kr("고리의 길이", size=30),
@@ -157,7 +157,7 @@ class Rings(MathScene):
         self.say("이 고리의 길이는 2πt 입니다", 2.8)
         self.play(Write(circ), run_time=1.2)
         self.play(Indicate(target, color=YELLOW, scale_factor=1.06), run_time=1.0)
-        self.wait(1.2)
+        self.wait(0.6)
 
         self.play(
             FadeOut(radius_line), FadeOut(t_label), FadeOut(circ),
@@ -193,7 +193,7 @@ class Unroll(MathScene):
         )
         self.wait(0.8)
 
-        self.say("짧은 것부터 쌓으면, 삼각형이 됩니다", 3.0)
+        self.say("짧은 것부터 쌓으면, 삼각형이 됩니다", 2.2)
 
         base_y = APEX[1] - R
         tri = Polygon(
@@ -204,8 +204,8 @@ class Unroll(MathScene):
             stroke_color=WHITE,
             fill_opacity=0,
         )
-        self.play(Create(tri), run_time=1.8)
-        self.wait(0.6)
+        self.play(Create(tri), run_time=1.6)
+        self.wait(0.3)
 
         base_brace = Brace(
             Line(np.array([-PI * R, base_y, 0.0]), np.array([PI * R, base_y, 0.0])),
@@ -233,12 +233,12 @@ class Unroll(MathScene):
 
         self.say("밑변은 가장 바깥 고리의 길이, 2πr", 2.8)
         self.play(GrowFromCenter(base_brace), Write(base_label), run_time=1.0)
-        self.wait(1.4)
+        self.wait(0.8)
 
         self.say("높이는 반지름 r", 2.4)
         self.play(Create(guide), run_time=0.5)
         self.play(GrowFromCenter(height_brace), Write(height_label), run_time=0.9)
-        self.wait(1.8)
+        self.wait(1.2)
         self.clear_subtitle()
 
 

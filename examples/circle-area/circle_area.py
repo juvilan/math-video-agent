@@ -81,7 +81,7 @@ class Hook(MathScene):
         r_label = MathTex("r", font_size=40, color=YELLOW)
         r_label.next_to(radius_line, UP, buff=0.15)
 
-        self.sfx("whoosh", gain=-14)
+        self.sfx("whoosh", gain=-15)
         self.play(Create(circle), run_time=1.6)
         self.play(Create(radius_line), Write(r_label), run_time=0.9)
         self.wait(0.6)
@@ -97,11 +97,12 @@ class Hook(MathScene):
         question = kr("?", size=64, color=YELLOW).next_to(formula, RIGHT, buff=0.4)
 
         self.say("원의 넓이는 파이 알 제곱", 2.4)
+        self.sfx("pop", gain=-12)
         self.play(Write(formula), run_time=1.2)
         self.wait(0.8)
 
         self.say("외우긴 했는데, 왜 그럴까요?", 2.6)
-        self.sfx("pop", gain=-10)
+        self.sfx("reveal", gain=-13)
         self.play(FadeIn(question, scale=1.4), run_time=0.6)
         self.play(Indicate(question, color=YELLOW, scale_factor=1.3), run_time=0.9)
         self.wait(1.0)
@@ -122,7 +123,7 @@ class Rings(MathScene):
 
         self.say("원을 아주 얇은 고리로 잘라봅니다", 2.4)
         # 안쪽부터 바깥으로 차오르게. lag_ratio를 주면 한꺼번에 터지지 않는다.
-        self.sfx("whoosh", gain=-12)
+        self.sfx("rise", gain=-14)
         self.play(
             LaggedStart(*[Create(r) for r in rings], lag_ratio=0.012),
             run_time=2.4,
@@ -147,7 +148,7 @@ class Rings(MathScene):
             target.animate.set_stroke(color=YELLOW, width=5),
             run_time=1.0,
         )
-        self.sfx("tick", gain=-14)
+        self.sfx("tick", gain=-16)
         self.play(Create(radius_line), Write(t_label), run_time=0.8)
         self.wait(0.4)
 
@@ -188,7 +189,7 @@ class Unroll(MathScene):
         lines = make_unrolled()
         # VGroup 순서가 서로 대응하므로 고리 i 가 선 i 로 간다.
         # 시간이 흐르는 변형이 아니라 형태 변형이므로 rate_func는 기본 smooth.
-        self.sfx("whoosh", gain=-10)
+        self.sfx("sweep", gain=-13)
         self.play(
             LaggedStart(
                 *[Transform(ring, line) for ring, line in zip(rings, lines)],
@@ -209,6 +210,7 @@ class Unroll(MathScene):
             stroke_color=WHITE,
             fill_opacity=0,
         )
+        self.sfx("pop", gain=-14)
         self.play(Create(tri), run_time=1.6)
         self.wait(0.3)
 
@@ -279,6 +281,7 @@ class Result(MathScene):
 
         arrow = MathTex("=", font_size=52).move_to(DOWN * 0.1)
         self.play(Write(arrow), run_time=0.4)
+        self.sfx("click", gain=-16)
         self.play(TransformFromCopy(step1, step2), run_time=1.6)
         self.wait(1.0)
 

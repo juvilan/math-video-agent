@@ -44,7 +44,7 @@ skills/
     templates/                씬 템플릿 6종
     scripts/                  mv.py (렌더·배치검사·이어붙이기), qc.py (검수),
                               setup_manim.sh
-assets/sfx/                   효과음 (ffmpeg 합성 자리표시자 — 갈아끼울 것)
+assets/sfx/                   효과음 9종 + generate.sh (ffmpeg 합성)
   math-storyboard/            콘티 스킬 — 6단계로 사용자와 함께 기획
 docs/
   source-video-analysis.md    원본 영상 분석 + 이 레포로의 매핑
@@ -248,8 +248,16 @@ python3 skills/manim-video/scripts/mv.py join out.mp4 A.mp4 B.mp4 C.mp4
 python3 skills/manim-video/scripts/qc.py stats out.mp4   # 오디오 트랙 확인
 ```
 
-레포의 `assets/sfx/*.wav` 는 ffmpeg 로 합성한 자리표시자다.
-실제 음원으로 갈아끼우면 된다. 자세한 건 `references/audio.md`.
+레포에 효과음 9종이 딸려온다 — `pop` `tick` `click` `whoosh` `sweep`
+`rise` `drop` `reveal` `chime`. 전부 `assets/sfx/generate.sh` 가
+ffmpeg 로 합성한 것이라 **저작권 문제가 없고**, 톤이 안 맞으면
+스크립트의 수식만 고쳐 다시 돌리면 된다.
+
+```bash
+bash assets/sfx/generate.sh     # 길이·피크·RMS 표까지 찍어준다
+```
+
+자세한 건 `references/audio.md`.
 
 ---
 
